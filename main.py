@@ -1,18 +1,3 @@
-#!/usr/bin/env python3
-"""
-compare_biometrics.py
-
-Generate ROC curves comparing three face-recognition tools:
-  • DeepFace (Facenet backend)
-  • FaceNet PyTorch
-  • OpenCV baseline
-
-Data is hard-coded in Data/Face; outputs go to results/.
-
-Usage:
-    python -u compare_biometrics.py
-"""
-
 import os
 import glob
 import random
@@ -227,8 +212,9 @@ def main():
         plt.legend(loc='lower right')
         plt.grid(True)
         ax = plt.gca()
-        ax.xaxis.set_major_formatter(mtick.PercentFormatter())
-        ax.yaxis.set_major_formatter(mtick.PercentFormatter())
+        ax.xaxis.set_major_formatter(mtick.PercentFormatter(xmax=1.0, decimals=2))
+        ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1.0, decimals=2))
+
         plt.savefig(os.path.join(OUTPUT_DIR, 'roc_comparison.png'))
         pd.DataFrame(records).to_csv(os.path.join(OUTPUT_DIR, 'fmr_fnmr_table.csv'), index=False)
     except Exception:
@@ -244,8 +230,8 @@ def main():
             fpr, tpr, _ = roc_curve(y_true, scr, pos_label=1)
             df_plot.append(pd.DataFrame({
                 'Method':    t,
-                'FMR (%)':   fpr*100,
-                'TPR (%)':   tpr*100,
+                'FMR (%)':   fpr,
+                'TPR (%)':   tpr,
             }))
         df_plot = pd.concat(df_plot, ignore_index=True)
         fig = px.line(
@@ -257,7 +243,7 @@ def main():
             xaxis_title='False Match Rate (FMR) [%]',
             yaxis_title='True Match Rate (TPR) [%]',
             legend_title_text='Tool',
-            xaxis_tickformat='%', yaxis_tickformat='%'
+            xaxis_tickformat='.2%', yaxis_tickformat='.2%'
         )
         html_path = os.path.join(OUTPUT_DIR, 'roc_comparison.html')
         fig.write_html(html_path, include_plotlyjs='cdn')

@@ -145,7 +145,8 @@ python morph.py
 ### Output Files
 
 **Face Recognition Evaluation**:
-- `results/roc_comparison.png`: ROC curve comparison
+- `results/roc_comparison.png`: Static ROC curve comparison
+- `results/index.html`: Interactive HTML ROC curves with hover details
 - `results/fmr_fnmr_table.csv`: Detailed performance metrics
 
 **Morphing Attack Evaluation**:
@@ -215,8 +216,10 @@ The morphing attack evaluation provides:
   - Model initialization
   - Embedding extraction
   - Similarity scoring
-- **`roc.py`**: Main evaluation pipeline
+- **`roc.py`**: Main evaluation pipeline (static PNG output)
+- **`generate_html_roc.py`**: Interactive HTML ROC curve generator
 - **`morph.py`**: Morphing attack implementation
+- **`run.py`**: Cross-platform CLI interface
 
 ### Adding New Methods
 

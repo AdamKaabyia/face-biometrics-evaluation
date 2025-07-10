@@ -18,6 +18,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,11 +26,16 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload ROC comparison
+      # ← Create a small directory and copy your file into it
+      - name: Prepare Pages site
+        run: |
+          mkdir site
+          cp results/roc_comparison.html site/index.html
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # only upload your ROC HTML
-          path: results/roc_comparison.html
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment

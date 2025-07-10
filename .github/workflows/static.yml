@@ -1,36 +1,41 @@
-name: Deploy ROC comparison to Pages
+name: Deploy ROC to gh-pages
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  contents: write
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout default branch
         uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload ROC comparison
-        uses: actions/upload-pages-artifact@v3
         with:
-          # only upload your ROC HTML
-          path: results/roc_comparison.html
+          ref: main        # change if your HTML lives on a different branch
+          fetch-depth: 0   # need full history to detect gh-pages
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Configure Git
+        run: |
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Switch to (or create) gh-pages
+        run: |
+          if git show-ref --quiet refs/heads/gh-pages; then
+            git checkout gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf .
+          fi
+
+      - name: Copy and rename ROC comparison
+        run: |
+          cp results/roc_comparison.html index.html
+
+      - name: Commit & push
+        run: |
+          git add index.html
+          git commit -m "Deploy updated ROC comparison" || echo "No changes to commit"
+          git push origin gh-pages --force

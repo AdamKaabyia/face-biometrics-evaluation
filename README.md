@@ -241,18 +241,6 @@ for i, (p1, p2) in enumerate(pairs, 1):
     scores['NewMethod'].append(cosine_similarity(e1, e2))
 ```
 
-### Testing
-
-```bash
-# Run basic tests
-python -m pytest
-
-# Run code linting
-python -m flake8 .
-
-# Format code
-python -m black .
-```
 
 ## Dataset Requirements
 

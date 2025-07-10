@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 DATASET_DIR = os.path.join('Data', 'Face')
 OUTPUT_DIR   = 'results'
 FMR_TARGETS  = [0.001, 0.01, 0.05]
-IMAGE_EXTS   = ('.bmp', '.jpg', '.jpeg', '.png')
+IMAGE_EXTS   = ('.bmp', '.jpg', '.jpeg', '.png') #I know all our images are bmp but this makes the code more versatile
 LOG_EVERY    = 100   # log progress every N items
 NUM_THREADS  = 4     # parallel threads for embedding
 # ─────────────────────
@@ -90,7 +90,7 @@ def main():
         logger.exception("Failed to load dataset")
         sys.exit(1)
 
-    # 2) Build map label→images
+    # 2) Build map label -> images
     label_map = defaultdict(list)
     for p, l in zip(paths, labels):
         label_map[l].append(p)
@@ -196,7 +196,7 @@ def main():
         for t, scr in scores.items():
             fpr, tpr, thr = roc_curve(y_true, scr, pos_label=1)
             roc_auc = auc(fpr, tpr)
-            plt.plot(fpr*100, tpr*100, label=f'{t} (AUC={roc_auc:.2f})')
+            plt.plot(fpr, tpr, label=f'{t} (AUC={roc_auc:.2f})')
             for tgt in FMR_TARGETS:
                 idx = np.argmin(np.abs(fpr - tgt))
                 records.append({
@@ -221,37 +221,37 @@ def main():
         logger.exception("Failed while plotting or saving static ROC")
         sys.exit(1)
 
-    # 11) Interactive ROC
-    logger.info("Saving interactive ROC…")
-    try:
-        import plotly.express as px
-        df_plot = []
-        for t, scr in scores.items():
-            fpr, tpr, _ = roc_curve(y_true, scr, pos_label=1)
-            df_plot.append(pd.DataFrame({
-                'Method':    t,
-                'FMR (%)':   fpr,
-                'TPR (%)':   tpr,
-            }))
-        df_plot = pd.concat(df_plot, ignore_index=True)
-        fig = px.line(
-            df_plot,
-            x='FMR (%)', y='TPR (%)', color='Method',
-            title='Interactive ROC Comparison'
-        )
-        fig.update_layout(
-            xaxis_title='False Match Rate (FMR) [%]',
-            yaxis_title='True Match Rate (TPR) [%]',
-            legend_title_text='Tool',
-            xaxis_tickformat='.2%', yaxis_tickformat='.2%'
-        )
-        html_path = os.path.join(OUTPUT_DIR, 'roc_comparison.html')
-        fig.write_html(html_path, include_plotlyjs='cdn')
-        logger.info(f"Saved interactive ROC -> {html_path}")
-    except ImportError:
-        logger.warning("Plotly not installed; skipping interactive ROC.")
-    except Exception:
-        logger.exception("Failed while generating interactive ROC")
+    # # 11) Interactive ROC
+    # logger.info("Saving interactive ROC…")
+    # try:
+    #     import plotly.express as px
+    #     df_plot = []
+    #     for t, scr in scores.items():
+    #         fpr, tpr, _ = roc_curve(y_true, scr, pos_label=1)
+    #         df_plot.append(pd.DataFrame({
+    #             'Method':    t,
+    #             'FMR (%)':   fpr,
+    #             'TPR (%)':   tpr,
+    #         }))
+    #     df_plot = pd.concat(df_plot, ignore_index=True)
+    #     fig = px.line(
+    #         df_plot,
+    #         x='FMR (%)', y='TPR (%)', color='Method',
+    #         title='Interactive ROC Comparison'
+    #     )
+    #     fig.update_layout(
+    #         xaxis_title='False Match Rate (FMR) [%]',
+    #         yaxis_title='True Match Rate (TPR) [%]',
+    #         legend_title_text='Tool',
+    #         xaxis_tickformat='.2%', yaxis_tickformat='.2%'
+    #     )
+    #     html_path = os.path.join(OUTPUT_DIR, 'roc_comparison.html')
+    #     fig.write_html(html_path, include_plotlyjs='cdn')
+    #     logger.info(f"Saved interactive ROC -> {html_path}")
+    # except ImportError:
+    #     logger.warning("Plotly not installed; skipping interactive ROC.")
+    # except Exception:
+    #     logger.exception("Failed while generating interactive ROC")
 
     # 12) Wrap up
     total_min = (time.time() - start) / 60

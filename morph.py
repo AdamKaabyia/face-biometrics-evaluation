@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-morph.py — Demonstrates a face-morphing attack and evaluates its success
-           with three matchers: PyTorch-FaceNet, DeepFace-FaceNet and
-           a naive OpenCV-grayscale baseline.
-"""
-
 from __future__ import annotations
 import os, random, time, json, csv, tempfile, pathlib, logging
 from collections import Counter, defaultdict
@@ -16,12 +9,14 @@ import numpy as np
 import mediapipe as mp
 from deepface import DeepFace
 
-from main import (
-    load_dataset, make_pairs, init_models, embed_pytorch, score_opencv_gray,
-    logger, OUTPUT_DIR
+# Import from our modules
+from logger import logger
+from utils import (
+    OUTPUT_DIR, load_dataset, make_pairs, init_models, embed_pytorch,
+    score_opencv_gray, cosine_similarity
 )
 
-# ───────────────────────────── configuration ────────────────────────────────
+# Configuration
 DATASET_DIR   = os.path.join("Data", "Face")
 CANVAS_SIZE   = (512, 512)          # warp target size (W, H)
 MAX_PAIRS     = 100                 # morphs to evaluate
@@ -30,12 +25,12 @@ ALPHA         = 0.5                 # blend factor for morphing
 PROGRESS_STEP = 100                 # log every N items
 
 THRESHOLDS: Dict[str, float] = {
-    "pytorch"     : 0.70,   # cosine ≥ threshold → accept
+    "pytorch"     : 0.70,   # cosine ≥ threshold then accept
     "deepface"    : 0.70,
-    "opencv_gray" : -0.50   # distance ≥ –0.50 → accept (note sign)
+    "opencv_gray" : -0.50   # distance ≥ –0.50 then accept (note sign)
 }
 
-# ───────────────────────────── landmark extractor ───────────────────────────
+# Landmark extractor
 _mesh  = mp.solutions.face_mesh.FaceMesh(static_image_mode=True)
 IDX_68 = np.linspace(0, 467, 68, dtype=int)          # down-sample to 68 pts
 W, H   = CANVAS_SIZE
@@ -50,7 +45,7 @@ def extract_landmarks(img_bgr: np.ndarray) -> np.ndarray:
     return np.array([(lm0.landmark[i].x, lm0.landmark[i].y) for i in IDX_68],
                     dtype=np.float32)
 
-# ───────────────────────────── triangle-warp helpers ────────────────────────
+# Triangle-warp helpers
 def _warp_triangle(src, tri_src, tri_dst):
     M = cv2.getAffineTransform(tri_src.astype(np.float32),
                                tri_dst.astype(np.float32))
@@ -92,10 +87,10 @@ def build_morph(img_a, img_b, lm_a, lm_b, alpha: float = ALPHA) -> np.ndarray:
                  ).astype(np.uint8)
     return morph
 
-# ───────────────────────────── cache builder ────────────────────────────────
+# Cache builder
 def build_caches(img_paths: List[str]):
     """Pre-compute landmarks, embeddings and grayscale vectors."""
-    # ---- landmarks
+    # Landmarks
     landmarks, skipped = {}, []
     for i, p in enumerate(img_paths, 1):
         try:
@@ -110,7 +105,7 @@ def build_caches(img_paths: List[str]):
     logger.info("Landmarks OK for %d images  |  %d skipped",
                 len(usable), len(skipped))
 
-    # ---- PyTorch FaceNet
+    # PyTorch FaceNet
     pytorch_model = init_models()
     pytorch_cache = {}
     logger.info("Caching PyTorch embeddings …")
@@ -122,7 +117,7 @@ def build_caches(img_paths: List[str]):
             if done % PROGRESS_STEP == 0 or done == len(usable):
                 logger.info("  PyTorch %d/%d", done, len(usable))
 
-    # ---- DeepFace FaceNet
+    # DeepFace FaceNet
     deepface_cache = {}
     logger.info("Caching DeepFace embeddings …")
     for i, p in enumerate(usable, 1):
@@ -135,7 +130,7 @@ def build_caches(img_paths: List[str]):
         if i % PROGRESS_STEP == 0 or i == len(usable):
             logger.info("  DeepFace %d/%d", i, len(usable))
 
-    # ---- grayscale baseline
+    # Grayscale baseline
     gray_cache = {}
     logger.info("Caching grayscale vectors …")
     for i, p in enumerate(usable, 1):
@@ -153,12 +148,7 @@ def build_caches(img_paths: List[str]):
         gray_cache=gray_cache
     )
 
-# ───────────────────────────── pair evaluation ──────────────────────────────
-def cosine(u: np.ndarray, v: np.ndarray) -> float:
-    """Return classic cosine similarity."""
-    return float(u.dot(v) / (np.linalg.norm(u) * np.linalg.norm(v)))
-
-
+# Pair evaluation
 def evaluate_pair(pair: Tuple[str, str], caches) -> Tuple[bool, bool, bool]:
     a, b = pair
     lm = caches["landmarks"]
@@ -171,14 +161,14 @@ def evaluate_pair(pair: Tuple[str, str], caches) -> Tuple[bool, bool, bool]:
         cv2.imwrite(tmp.name, morph_img)
         morph_path = tmp.name
 
-    # ---- PyTorch
+    # PyTorch
     emb_morph = embed_pytorch(morph_path, caches["pytorch_model"])
     ok_pt = (
-        cosine(caches["pytorch_cache"][a], emb_morph) >= THRESHOLDS["pytorch"] and
-        cosine(caches["pytorch_cache"][b], emb_morph) >= THRESHOLDS["pytorch"]
+        cosine_similarity(caches["pytorch_cache"][a], emb_morph) >= THRESHOLDS["pytorch"] and
+        cosine_similarity(caches["pytorch_cache"][b], emb_morph) >= THRESHOLDS["pytorch"]
     )
 
-    # ── DeepFace  (now wrapped in try/except)
+    # DeepFace (now wrapped in try/except)
     try:
         emb_morph = np.asarray(
             DeepFace.represent(img_path=morph_path,
@@ -187,94 +177,110 @@ def evaluate_pair(pair: Tuple[str, str], caches) -> Tuple[bool, bool, bool]:
             dtype=np.float32
         )
         ok_df = (
-            cosine(caches["deepface_cache"][a], emb_morph) >= THRESHOLDS["deepface"] and
-            cosine(caches["deepface_cache"][b], emb_morph) >= THRESHOLDS["deepface"]
+            cosine_similarity(caches["deepface_cache"][a], emb_morph) >= THRESHOLDS["deepface"] and
+            cosine_similarity(caches["deepface_cache"][b], emb_morph) >= THRESHOLDS["deepface"]
         )
     except Exception as e:
         logging.debug("DeepFace failed on morph (%s , %s): %s", a, b, e)
         ok_df = False
 
-    # ---- grayscale baseline
+    # Grayscale baseline
     gray_morph = cv2.cvtColor(morph_img, cv2.COLOR_BGR2GRAY).flatten().astype(np.float32)
     ok_gray = (
         score_opencv_gray(caches["gray_cache"][a], gray_morph) >= THRESHOLDS["opencv_gray"] and
         score_opencv_gray(caches["gray_cache"][b], gray_morph) >= THRESHOLDS["opencv_gray"]
     )
 
-    os.remove(morph_path)
+    # cleanup
+    os.unlink(morph_path)
     return ok_pt, ok_df, ok_gray
 
-# ───────────────────────────── attack driver ────────────────────────────────
+# Attack runner
 def run_attack(pairs: List[Tuple[str, str]], caches) -> None:
-    pathlib.Path(OUTPUT_DIR).mkdir(exist_ok=True)
+    """Run morph attack evaluation on the given pairs."""
+    results = {"pytorch": [], "deepface": [], "opencv_gray": []}
+    pair_records = []
 
-    tallies = Counter(pytorch=0, deepface=0, opencv_gray=0)
-    records = []
-    t0 = time.time()
+    for i, pair in enumerate(pairs, 1):
+        ok_pt, ok_df, ok_gray = evaluate_pair(pair, caches)
 
-    with ThreadPoolExecutor(N_THREADS) as pool:
-        for (ok_pt, ok_df, ok_gray), (a, b) in zip(
-                pool.map(lambda pr: evaluate_pair(pr, caches), pairs), pairs):
-            tallies["pytorch"]     += int(ok_pt)
-            tallies["deepface"]    += int(ok_df)
-            tallies["opencv_gray"] += int(ok_gray)
-            records.append({
-                "img_A": a, "img_B": b,
-                "pass_pytorch": int(ok_pt),
-                "pass_deepface": int(ok_df),
-                "pass_gray":    int(ok_gray)
-            })
+        results["pytorch"].append(ok_pt)
+        results["deepface"].append(ok_df)
+        results["opencv_gray"].append(ok_gray)
 
-    total = len(pairs)
+        pair_records.append({
+            "pair_id": i,
+            "image_a": pair[0],
+            "image_b": pair[1],
+            "pytorch_success": ok_pt,
+            "deepface_success": ok_df,
+            "opencv_success": ok_gray
+        })
 
-    # -------- console summary --------
-    print("\n────────  Morph-Attack Summary  ────────")
-    for k, lbl in [("pytorch", "PyTorch-FaceNet"),
-                   ("deepface", "DeepFace-FaceNet"),
-                   ("opencv_gray", "OpenCV grayscale")]:
-        print(f"{lbl:<18}: {tallies[k]:>3}/{total}   ({tallies[k] / total:.1%})")
-    print(f"Elapsed: {time.time() - t0:.1f} s")
-    print("────────────────────────────────────────\n")
+    # Summary statistics
+    stats = {}
+    for method, successes in results.items():
+        count = sum(successes)
+        rate = count / len(pairs) * 100
+        stats[method] = {"count": count, "rate": rate}
 
-    # -------- persist summary & per-pair log --------
-    csv_path = os.path.join(OUTPUT_DIR, "morph_attack_pairs.csv")
-    with open(csv_path, "w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=records[0].keys())
-        writer.writeheader()
-        writer.writerows(records)
+    # Output results
+    print("\nMorph-Attack Summary")
+    print(f"PyTorch-FaceNet   : {stats['pytorch']['count']:3d}/{len(pairs):3d}   ({stats['pytorch']['rate']:4.1f}%)")
+    print(f"DeepFace-FaceNet  : {stats['deepface']['count']:3d}/{len(pairs):3d}   ({stats['deepface']['rate']:4.1f}%)")
+    print(f"OpenCV grayscale  : {stats['opencv_gray']['count']:3d}/{len(pairs):3d}   ({stats['opencv_gray']['rate']:4.1f}%)")
+    elapsed = time.time() - start_time if 'start_time' in globals() else 0
+    print(f"Elapsed: {elapsed:.1f} s")
 
-    def py(v):
-        if isinstance(v, (np.integer, np.bool_)):
-            return int(v)
-        if isinstance(v, np.floating):
-            return float(v)
-        return v
 
-    json_path = os.path.join(OUTPUT_DIR, "morph_attack_summary.json")
-    with open(json_path, "w") as fh:
-        json.dump({
-            "total_pairs": int(total),
-            "success_counts": {k: py(v) for k, v in tallies.items()},
-            "success_rates": {k: tallies[k] / total for k in tallies}
-        }, fh, indent=2)
+    # Save detailed results
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    logger.info("Pair-level CSV  -> %s", csv_path)
-    logger.info("Summary  JSON   -> %s", json_path)
+    # Pair-level CSV
+    import pandas as pd
+    df_pairs = pd.DataFrame(pair_records)
+    pairs_csv = os.path.join(OUTPUT_DIR, "morph_attack_pairs.csv")
+    df_pairs.to_csv(pairs_csv, index=False)
+    logger.info(f"Pair-level CSV  -> {pairs_csv}")
 
-# ──────────────────────────────── entry-point ───────────────────────────────
+    # Summary JSON
+    summary_data = {
+        "total_pairs": len(pairs),
+        "results": stats,
+        "elapsed_seconds": elapsed,
+        "thresholds": THRESHOLDS
+    }
+    summary_json = os.path.join(OUTPUT_DIR, "morph_attack_summary.json")
+    with open(summary_json, "w") as f:
+        json.dump(summary_data, f, indent=2)
+    logger.info(f"Summary  JSON   -> {summary_json}")
+
 if __name__ == "__main__":
-    img_paths, labels = load_dataset(DATASET_DIR)
+    start_time = time.time()
 
-    by_id = defaultdict(list)
-    for p, lab in zip(img_paths, labels):
-        by_id[lab].append(p)
-    genuine_pairs, _ = make_pairs({k: v for k, v in by_id.items() if len(v) >= 2})
+    # Load data and generate pairs
+    paths, labels = load_dataset(DATASET_DIR)
+    label_map = defaultdict(list)
+    for p, l in zip(paths, labels):
+        label_map[l].append(p)
 
-    caches      = build_caches(img_paths)
-    usable_set  = set(caches["usable"])
-    valid_pairs = [(a, b) for a, b in genuine_pairs if a in usable_set and b in usable_set]
-    random.shuffle(valid_pairs)
-    test_pairs  = valid_pairs[:MAX_PAIRS]
+    # Filter to identities with at least 2 images
+    valid_map = {k: v for k, v in label_map.items() if len(v) >= 2}
+    genuine_pairs, _ = make_pairs(valid_map)
 
-    logger.info("Running morph attack on %d pairs …", len(test_pairs))
-    run_attack(test_pairs, caches)
+    # Sample pairs for evaluation
+    if len(genuine_pairs) > MAX_PAIRS:
+        attack_pairs = random.sample(genuine_pairs, MAX_PAIRS)
+    else:
+        attack_pairs = genuine_pairs
+
+    logger.info(f"Running morph attack on {len(attack_pairs)} pairs …")
+
+    # Get all unique image paths
+    unique_paths = list(set([p for pair in attack_pairs for p in pair]))
+
+    # Build caches
+    caches = build_caches(unique_paths)
+
+    # Run attack
+    run_attack(attack_pairs, caches)

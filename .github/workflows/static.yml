@@ -30,7 +30,7 @@ jobs:
       - name: Prepare Pages site
         run: |
           mkdir site
-          cp results/roc_comparison.html site/index.html
+          cp results/index.html site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -55,15 +55,21 @@ For a guided experience, use interactive mode:
 python run.py interactive
 ```
 
-This will show you a menu like:
+This will show you a menu:
 ```
-Face Biometrics Evaluation - Interactive Mode
-1. Run Face Recognition ROC Analysis
-2. Generate Interactive HTML ROC Curves
-3. Run Morphing Attack Evaluation
-4. Run Complete Evaluation (All)
-5. Check Data Organization
-6. Exit
+Available Commands:
+  1) Setup environment
+  2) Run face recognition evaluation
+  3) Generate interactive HTML ROC curves
+  4) Run morphing attack evaluation
+  5) Run complete evaluation
+  6) Show results
+  7) Check status
+  8) Clean temporary files
+  9) Reset project
+  q) Quit interactive mode
+
+Enter command number (or 'q' to quit):
 ```
 
 ## Requirements

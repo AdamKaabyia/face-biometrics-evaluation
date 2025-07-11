@@ -222,7 +222,7 @@ def run_attack(pairs: List[Tuple[str, str]], caches) -> None:
     for method, successes in results.items():
         count = sum(successes)
         rate = count / len(pairs) * 100
-        stats[method] = {"count": count, "rate": rate}
+        stats[method] = {"count": int(count), "rate": float(rate)}
 
     # Output results
     print("\nMorph-Attack Summary")
@@ -245,9 +245,9 @@ def run_attack(pairs: List[Tuple[str, str]], caches) -> None:
 
     # Summary JSON
     summary_data = {
-        "total_pairs": len(pairs),
+        "total_pairs": int(len(pairs)),
         "results": stats,
-        "elapsed_seconds": elapsed,
+        "elapsed_seconds": float(elapsed),
         "thresholds": THRESHOLDS
     }
     summary_json = os.path.join(OUTPUT_DIR, "morph_attack_summary.json")
@@ -282,5 +282,12 @@ if __name__ == "__main__":
     # Build caches
     caches = build_caches(unique_paths)
 
+    # Filter attack pairs to only include usable images (ones with landmarks)
+    usable_set = set(caches["usable"])
+    filtered_pairs = [pair for pair in attack_pairs
+                     if pair[0] in usable_set and pair[1] in usable_set]
+
+    logger.info(f"Filtered {len(attack_pairs)} pairs to {len(filtered_pairs)} usable pairs")
+
     # Run attack
-    run_attack(attack_pairs, caches)
+    run_attack(filtered_pairs, caches)

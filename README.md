@@ -2,7 +2,136 @@
 
 A comprehensive face recognition evaluation system that compares multiple face recognition methods and evaluates their vulnerability to morphing attacks.
 
-##  Overview
+## Quick Start (Automatic Setup)
+
+The easiest way to use this system is with the automated `run.py` script:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/AdamKaabyia/face-biometrics-evaluation.git
+cd face-biometrics-evaluation
+
+# 2. Prepare your dataset
+# Place face images in Data/Face/ organized by person: Data/Face/person_001/, Data/Face/person_002/, etc.
+
+# 3. One-time setup (installs everything automatically)
+python run.py setup
+
+# 4. Run complete evaluation
+python run.py all
+```
+
+That's it! The system will automatically create the environment, install dependencies, and run all evaluations.
+
+## All Available Commands
+
+```bash
+# Setup and Environment
+python run.py setup               # First-time setup (creates venv, installs dependencies)
+python run.py status              # Check system and project status
+python run.py clean               # Clean temporary files and cache
+python run.py reset               # Remove virtual environment (for fresh start)
+
+# Data Management
+python run.py check-data          # Validate dataset organization
+python run.py results             # Show existing results
+
+# Face Recognition Evaluation
+python run.py roc                 # Generate static ROC curves (PNG)
+python run.py html                # Generate interactive HTML ROC curves
+python run.py morph               # Run morphing attack evaluation
+python run.py all                 # Run complete evaluation (roc + html + morph)
+
+# Interactive Mode
+python run.py interactive         # Start interactive menu
+python run.py help                # Show detailed help and examples
+```
+
+### Interactive Mode
+
+For a guided experience, use interactive mode:
+
+```bash
+python run.py interactive
+```
+
+This will show you a menu like:
+```
+Face Biometrics Evaluation - Interactive Mode
+1. Run Face Recognition ROC Analysis
+2. Generate Interactive HTML ROC Curves
+3. Run Morphing Attack Evaluation
+4. Run Complete Evaluation (All)
+5. Check Data Organization
+6. Exit
+```
+
+## Requirements
+
+- Python 3.11+ (recommended) or Python 3.8+
+- Windows 10/11, Linux, or macOS
+- At least 4GB RAM
+- 2GB free disk space
+
+## Dataset Setup
+
+Organize your face images in this structure:
+
+```
+Data/Face/
+├── person_001/
+│   ├── image1.bmp
+│   ├── image2.bmp
+│   └── ...
+├── person_002/
+│   ├── image1.jpg
+│   ├── image2.jpg
+│   └── ...
+└── ...
+```
+
+**Supported formats**: BMP, JPG, JPEG, PNG
+**Minimum**: 2 images per person for pair generation
+
+## Manual Setup (Advanced Users)
+
+If you prefer manual control over the environment:
+
+### Windows
+```cmd
+# Create virtual environment
+python -m venv face-biometrics-venv
+
+# Activate environment
+face-biometrics-venv\Scripts\activate.bat
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run evaluations directly
+python roc.py
+python generate_html_roc.py
+python morph.py
+```
+
+### Linux/macOS
+```bash
+# Create virtual environment
+python -m venv face-biometrics-venv
+
+# Activate environment
+source face-biometrics-venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run evaluations directly
+python roc.py
+python generate_html_roc.py
+python morph.py
+```
+
+## Overview
 
 This project implements a face biometrics evaluation system that:
 
@@ -21,16 +150,16 @@ This project implements a face biometrics evaluation system that:
    - Evaluates attack success rates across different matchers
    - Provides detailed attack analysis and statistics
 
-##  Project Structure
+## Project Structure
 
 ```
 face-biometrics-evaluation/
-├── roc.py               # Main face recognition evaluation script
+├── run.py               # Cross-platform automated runner
+├── roc.py               # Static ROC curve evaluation
 ├── generate_html_roc.py # Interactive HTML ROC curve generator
-├── morph.py             # Morphing attack evaluation script
+├── morph.py             # Morphing attack evaluation
 ├── logger.py            # Centralized logging configuration
 ├── utils.py             # Shared utility functions and constants
-├── run.py               # Cross-platform runner script
 ├── requirements.txt     # Python dependencies
 ├── README.md           # This file
 ├── Data/               # Dataset directory
@@ -39,121 +168,25 @@ face-biometrics-evaluation/
 │       ├── person_002/
 │       └── ...
 └── results/            # Output directory for results
-    ├── roc_comparison.png
-    ├── index.html          # Interactive HTML ROC curves
-    ├── fmr_fnmr_table.csv
-    ├── morph_attack_pairs.csv
-    └── morph_attack_summary.json
+    ├── roc_comparison.png      # Static ROC curves
+    ├── index.html              # Interactive HTML ROC curves
+    ├── fmr_fnmr_table.csv      # Performance metrics
+    ├── morph_attack_pairs.csv  # Per-pair attack results
+    └── morph_attack_summary.json # Attack statistics
 ```
 
-## Requirements
+## Output Files
 
-- Python 3.11+ (recommended) or Python 3.8+
-- Windows 10/11, Linux, or macOS
-- At least 4GB RAM
-- 2GB free disk space
+### Face Recognition Evaluation
+- **`results/roc_comparison.png`**: Static ROC curve comparison
+- **`results/index.html`**: Interactive HTML ROC curves with hover details and zoom
+- **`results/fmr_fnmr_table.csv`**: Detailed performance metrics table
 
-## Installation
+### Morphing Attack Evaluation
+- **`results/morph_attack_pairs.csv`**: Per-pair attack results with detailed logs
+- **`results/morph_attack_summary.json`**: Overall attack success statistics
 
-1. **Clone the repository**:
-```bash
-git clone https://github.com/AdamKaabyia/face-biometrics-evaluation.git
-cd face-biometrics-evaluation
-```
-
-2. **Prepare your dataset**:
-   - Place your face images in `Data/Face/` directory
-   - Organize them in subdirectories by person ID: `Data/Face/person_001/`, `Data/Face/person_002/`, etc.
-   - Each person subdirectory should contain their face images
-
-3. **Set up the environment**:
-```bash
-python run.py setup
-```
-
-4. **Run the evaluation**:
-```bash
-python run.py all
-```
-
-### Manual Setup (Any Platform)
-```bash
-# Create virtual environment
-python -m venv face-biometrics-venv
-
-# Activate virtual environment
-# Windows:
-face-biometrics-venv\Scripts\activate.bat
-# Linux/macOS:
-source face-biometrics-venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run evaluations
-python roc.py
-python morph.py
-```
-
-## How to use
-
-```bash
-# Show all available commands
-python run.py help
-
-# Setup environment
-python run.py setup
-
-# Check if dataset is properly organized
-python run.py check-data
-
-# Run face recognition evaluation
-python run.py roc
-
-# Generate interactive HTML ROC curves
-python run.py html
-
-# Run morphing attack evaluation
-python run.py morph
-
-# Run both evaluations
-python run.py all
-
-# Clean temporary files
-python run.py clean
-
-# Show results
-python run.py results
-
-# Check system and project status
-python run.py status
-```
-
-### Direct Python Execution
-```bash
-# Activate virtual environment first
-# Windows:
-face-biometrics-venv\Scripts\activate.bat
-# Linux/macOS:
-source face-biometrics-venv/bin/activate
-
-# Then run scripts directly
-python roc.py
-python morph.py
-```
-
-### Output Files
-
-**Face Recognition Evaluation**:
-- `results/roc_comparison.png`: Static ROC curve comparison
-- `results/index.html`: Interactive HTML ROC curves with hover details
-- `results/fmr_fnmr_table.csv`: Detailed performance metrics
-
-**Morphing Attack Evaluation**:
-- `results/morph_attack_pairs.csv`: Per-pair attack results
-- `results/morph_attack_summary.json`: Attack success statistics
-
-##  Configuration
+## Configuration
 
 ### Main Configuration (`utils.py`)
 
@@ -186,9 +219,9 @@ THRESHOLDS = {
 
 ## Results Interpretation
 
-### Main Evaluation Results
+### Face Recognition Results
 
-The system generates several key outputs:
+The system generates:
 
 1. **ROC Curves**: Visual comparison of different face recognition methods
 2. **Performance Table**: Detailed metrics including:
@@ -210,16 +243,12 @@ The morphing attack evaluation provides:
 
 ### Code Structure
 
+- **`run.py`**: Cross-platform CLI interface with automated environment management
 - **`logger.py`**: Centralized logging with configurable levels
-- **`utils.py`**: Shared utilities including:
-  - Dataset loading and pair generation
-  - Model initialization
-  - Embedding extraction
-  - Similarity scoring
+- **`utils.py`**: Shared utilities including dataset loading, model initialization, embedding extraction
 - **`roc.py`**: Main evaluation pipeline (static PNG output)
-- **`generate_html_roc.py`**: Interactive HTML ROC curve generator
-- **`morph.py`**: Morphing attack implementation
-- **`run.py`**: Cross-platform CLI interface
+- **`generate_html_roc.py`**: Interactive HTML ROC curve generator using Plotly
+- **`morph.py`**: Morphing attack implementation with Delaunay triangulation
 
 ### Adding New Methods
 
@@ -243,32 +272,6 @@ for i, (p1, p2) in enumerate(pairs, 1):
     e1, e2 = new_cache[p1], new_cache[p2]
     scores['NewMethod'].append(cosine_similarity(e1, e2))
 ```
-
-
-## Dataset Requirements
-
-The system expects face images organized in a specific directory structure:
-
-- **Location**: `Data/Face/` directory
-- **Structure**: `Data/Face/person_id/image_files`
-- **Format**: BMP, JPG, JPEG, or PNG images
-- **Organization**: Each person should have their own subdirectory
-- **Example**:
-  ```
-  Data/Face/
-  ├── person_001/
-  │   ├── image1.bmp
-  │   ├── image2.bmp
-  │   └── ...
-  ├── person_002/
-  │   ├── image1.jpg
-  │   ├── image2.jpg
-  │   └── ...
-  └── ...
-  ```
-
-**Note**: The system works best with at least 2 images per person for pair generation.
-
 
 ## Troubleshooting
 

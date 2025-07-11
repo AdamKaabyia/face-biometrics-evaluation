@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-utils.py — Shared utility functions and constants for face biometrics evaluation
-"""
-
 import os
 import glob
 import random
@@ -17,7 +12,7 @@ from typing import List, Tuple, Dict, Any
 from logger import logger
 
 # Configuration constants
-DATASET_DIR = os.path.join('Data', 'Face')
+DATASET_DIR = os.path.join('Data')
 OUTPUT_DIR = 'results'
 FMR_TARGETS = [0.001, 0.01, 0.05]
 IMAGE_EXTS = ('.bmp', '.jpg', '.jpeg', '.png')  # Image extensions to process

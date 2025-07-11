@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Face Biometrics Evaluation CLI
-A comprehensive command-line interface for face recognition evaluation and morphing attacks.
-"""
-
 import os
 import sys
 import subprocess
@@ -34,7 +28,7 @@ class FaceBiometricsCLI:
         self.venv_name = 'face-biometrics-venv'
         self.data_dir = Path('Data')
         self.results_dir = Path('results')
-        self.face_dir = self.data_dir / 'Face'
+        self.face_dir = self.data_dir
 
     def _get_python_command(self) -> str:
         """Get the appropriate Python command for the platform"""
@@ -214,14 +208,14 @@ class FaceBiometricsCLI:
 
         if not self.face_dir.exists():
             self._print_error(f"Face dataset directory not found: {self.face_dir}")
-            self._print_info("Please ensure face images are in Data/Face/ directory")
-            self._print_info("Expected structure: Data/Face/person_id/image_files")
+            self._print_info("Please ensure face images are in Data/ directory")
+            self._print_info("Expected structure: Data/person_id/image_files")
             return False
 
         # Count number of person directories
         person_dirs = [d for d in self.face_dir.iterdir() if d.is_dir()]
         if not person_dirs:
-            self._print_error("No person directories found in Data/Face/")
+            self._print_error("No person directories found in Data/")
             self._print_info("Please ensure face images are organized in person subdirectories")
             return False
 
@@ -357,7 +351,7 @@ class FaceBiometricsCLI:
                 self._run_command(f'rm -rf {self.venv_name}', check=False, capture_output=True)
 
         # Remove extracted data
-        face_dir = self.data_dir / 'Face'
+        face_dir = self.data_dir
         if face_dir.exists():
             if self.is_windows:
                 self._run_command(f'rmdir /s /q "{face_dir}"', check=False, capture_output=True)
@@ -452,7 +446,7 @@ class FaceBiometricsCLI:
             else:
                 self._print_warning("Dataset directory exists but no person folders found")
         else:
-            self._print_error("Dataset: Not found in Data/Face/")
+            self._print_error("Dataset: Not found in Data/")
 
         # Results
         if self.results_dir.exists():

@@ -12,7 +12,7 @@ git clone https://github.com/AdamKaabyia/face-biometrics-evaluation.git
 cd face-biometrics-evaluation
 
 # 2. Prepare your dataset
-# Place face images in Data/Face/ organized by person: Data/Face/person_001/, Data/Face/person_002/, etc.
+# Place face images in Data/ organized by person: Data/person_001/, Data/person_002/, etc.
 
 # 3. One-time setup (installs everything automatically)
 python run.py setup
@@ -84,7 +84,7 @@ Enter command number (or 'q' to quit):
 Organize your face images in this structure:
 
 ```
-Data/Face/
+Data/
 ├── person_001/
 │   ├── image1.bmp
 │   ├── image2.bmp
@@ -168,11 +168,10 @@ face-biometrics-evaluation/
 ├── utils.py             # Shared utility functions and constants
 ├── requirements.txt     # Python dependencies
 ├── README.md           # This file
-├── Data/               # Dataset directory
-│   └── Face/           # Face images organized by person ID
-│       ├── person_001/ # Individual person directories
-│       ├── person_002/
-│       └── ...
+├── Data/               # Dataset directory, Face images organized by person ID
+│     ├── person_001/ # Individual person directories
+│     ├── person_002/
+│     └── ...
 └── results/            # Output directory for results
     ├── roc_comparison.png      # Static ROC curves
     ├── index.html              # Interactive HTML ROC curves
@@ -198,7 +197,7 @@ face-biometrics-evaluation/
 
 ```python
 # Dataset and output directories
-DATASET_DIR = os.path.join('Data', 'Face')
+DATASET_DIR = os.path.join('Data')
 OUTPUT_DIR = 'results'
 
 # Evaluation parameters
@@ -286,7 +285,7 @@ for i, (p1, p2) in enumerate(pairs, 1):
 #### All Platforms
 1. **Python version compatibility**: Ensure Python 3.8+ is installed
 2. **Memory issues**: Reduce `NUM_THREADS` or `MAX_PAIRS` in configuration
-3. **Missing dataset**: Ensure face images are properly organized in `Data/Face/` directory
+3. **Missing dataset**: Ensure face images are properly organized in `Data/` directory
 
 #### Windows-Specific
 1. **PowerShell execution policy**: Run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`

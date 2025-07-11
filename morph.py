@@ -17,7 +17,7 @@ from utils import (
 )
 
 # Configuration
-DATASET_DIR   = os.path.join("Data", "Face")
+DATASET_DIR   = os.path.join("Data")
 CANVAS_SIZE   = (512, 512)          # warp target size (W, H)
 MAX_PAIRS     = 100                 # morphs to evaluate
 N_THREADS     = 4                   # for embedding / evaluation

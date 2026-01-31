@@ -1,33 +1,36 @@
 from __future__ import annotations
-import os, random, time, json, csv, tempfile, pathlib, logging
-from collections import Counter, defaultdict
+import os
+import random
+import time
+import json
+import tempfile
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Tuple
 
 import cv2
 import numpy as np
+import pandas as pd
 import mediapipe as mp
 from deepface import DeepFace
 
 # Import from our modules
 from logger import logger
 from utils import (
-    OUTPUT_DIR, load_dataset, make_pairs, init_models, embed_pytorch,
+    DATASET_DIR, OUTPUT_DIR, LOG_EVERY, NUM_THREADS, GRAY_IMAGE_SIZE,
+    load_dataset, make_pairs, init_models, embed_pytorch,
     score_opencv_gray, cosine_similarity
 )
 
 # Configuration
-DATASET_DIR   = os.path.join("Data")
-CANVAS_SIZE   = (512, 512)          # warp target size (W, H)
+CANVAS_SIZE   = GRAY_IMAGE_SIZE     # warp target size (W, H) - use shared constant
 MAX_PAIRS     = 100                 # morphs to evaluate
-N_THREADS     = 4                   # for embedding / evaluation
 ALPHA         = 0.5                 # blend factor for morphing
-PROGRESS_STEP = 100                 # log every N items
 
 THRESHOLDS: Dict[str, float] = {
-    "pytorch"     : 0.70,   # cosine ≥ threshold then accept
-    "deepface"    : 0.70,
-    "opencv_gray" : -0.50   # distance ≥ –0.50 then accept (note sign)
+    "PyTorch FaceNet"   : 0.70,   # cosine ≥ threshold then accept
+    "DeepFace FaceNet"  : 0.70,
+    "OpenCV Grayscale"  : -0.50   # distance ≥ –0.50 then accept (note sign)
 }
 
 # Landmark extractor
@@ -98,8 +101,8 @@ def build_caches(img_paths: List[str]):
             landmarks[p] = extract_landmarks(img_rs)
         except RuntimeError:
             skipped.append(p)
-        if i % PROGRESS_STEP == 0 or i == len(img_paths):
-            logger.info("  Landmarks %d/%d", i, len(img_paths))
+        if i % LOG_EVERY == 0 or i == len(img_paths):
+            logger.info(f"  Landmarks {i}/{len(img_paths)}")
 
     usable = [p for p in img_paths if p not in skipped]
     logger.info("Landmarks OK for %d images  |  %d skipped",
@@ -109,13 +112,13 @@ def build_caches(img_paths: List[str]):
     pytorch_model = init_models()
     pytorch_cache = {}
     logger.info("Caching PyTorch embeddings …")
-    with ThreadPoolExecutor(N_THREADS) as pool:
+    with ThreadPoolExecutor(NUM_THREADS) as pool:
         futures = {pool.submit(embed_pytorch, p, pytorch_model): p
                    for p in usable}
         for done, fut in enumerate(as_completed(futures), 1):
             pytorch_cache[futures[fut]] = fut.result()
-            if done % PROGRESS_STEP == 0 or done == len(usable):
-                logger.info("  PyTorch %d/%d", done, len(usable))
+            if done % LOG_EVERY == 0 or done == len(usable):
+                logger.info(f"  PyTorch {done}/{len(usable)}")
 
     # DeepFace FaceNet
     deepface_cache = {}
@@ -127,8 +130,8 @@ def build_caches(img_paths: List[str]):
                                enforce_detection=False)[0]["embedding"],
             dtype=np.float32
         )
-        if i % PROGRESS_STEP == 0 or i == len(usable):
-            logger.info("  DeepFace %d/%d", i, len(usable))
+        if i % LOG_EVERY == 0 or i == len(usable):
+            logger.info(f"  DeepFace {i}/{len(usable)}")
 
     # Grayscale baseline
     gray_cache = {}
@@ -136,8 +139,8 @@ def build_caches(img_paths: List[str]):
     for i, p in enumerate(usable, 1):
         img_rs = cv2.resize(cv2.imread(p), CANVAS_SIZE)
         gray_cache[p] = cv2.cvtColor(img_rs, cv2.COLOR_BGR2GRAY).flatten().astype(np.float32)
-        if i % PROGRESS_STEP == 0 or i == len(usable):
-            logger.info("  Gray %d/%d", i, len(usable))
+        if i % LOG_EVERY == 0 or i == len(usable):
+            logger.info(f"  Gray {i}/{len(usable)}")
 
     return dict(
         usable=usable,
@@ -164,8 +167,8 @@ def evaluate_pair(pair: Tuple[str, str], caches) -> Tuple[bool, bool, bool]:
     # PyTorch
     emb_morph = embed_pytorch(morph_path, caches["pytorch_model"])
     ok_pt = (
-        cosine_similarity(caches["pytorch_cache"][a], emb_morph) >= THRESHOLDS["pytorch"] and
-        cosine_similarity(caches["pytorch_cache"][b], emb_morph) >= THRESHOLDS["pytorch"]
+        cosine_similarity(caches["pytorch_cache"][a], emb_morph) >= THRESHOLDS["PyTorch FaceNet"] and
+        cosine_similarity(caches["pytorch_cache"][b], emb_morph) >= THRESHOLDS["PyTorch FaceNet"]
     )
 
     # DeepFace (now wrapped in try/except)
@@ -177,8 +180,8 @@ def evaluate_pair(pair: Tuple[str, str], caches) -> Tuple[bool, bool, bool]:
             dtype=np.float32
         )
         ok_df = (
-            cosine_similarity(caches["deepface_cache"][a], emb_morph) >= THRESHOLDS["deepface"] and
-            cosine_similarity(caches["deepface_cache"][b], emb_morph) >= THRESHOLDS["deepface"]
+            cosine_similarity(caches["deepface_cache"][a], emb_morph) >= THRESHOLDS["DeepFace FaceNet"] and
+            cosine_similarity(caches["deepface_cache"][b], emb_morph) >= THRESHOLDS["DeepFace FaceNet"]
         )
     except Exception as e:
         logging.debug("DeepFace failed on morph (%s , %s): %s", a, b, e)
@@ -187,8 +190,8 @@ def evaluate_pair(pair: Tuple[str, str], caches) -> Tuple[bool, bool, bool]:
     # Grayscale baseline
     gray_morph = cv2.cvtColor(morph_img, cv2.COLOR_BGR2GRAY).flatten().astype(np.float32)
     ok_gray = (
-        score_opencv_gray(caches["gray_cache"][a], gray_morph) >= THRESHOLDS["opencv_gray"] and
-        score_opencv_gray(caches["gray_cache"][b], gray_morph) >= THRESHOLDS["opencv_gray"]
+        score_opencv_gray(caches["gray_cache"][a], gray_morph) >= THRESHOLDS["OpenCV Grayscale"] and
+        score_opencv_gray(caches["gray_cache"][b], gray_morph) >= THRESHOLDS["OpenCV Grayscale"]
     )
 
     # cleanup
@@ -196,25 +199,31 @@ def evaluate_pair(pair: Tuple[str, str], caches) -> Tuple[bool, bool, bool]:
     return ok_pt, ok_df, ok_gray
 
 # Attack runner
-def run_attack(pairs: List[Tuple[str, str]], caches) -> None:
-    """Run morph attack evaluation on the given pairs."""
-    results = {"pytorch": [], "deepface": [], "opencv_gray": []}
+def run_attack(pairs: List[Tuple[str, str]], caches, start_time: float) -> None:
+    """Run morph attack evaluation on the given pairs.
+    
+    Args:
+        pairs: List of (image_a, image_b) tuples to evaluate
+        caches: Dictionary containing cached embeddings and landmarks
+        start_time: Start time for elapsed time calculation
+    """
+    results = {"PyTorch FaceNet": [], "DeepFace FaceNet": [], "OpenCV Grayscale": []}
     pair_records = []
 
     for i, pair in enumerate(pairs, 1):
         ok_pt, ok_df, ok_gray = evaluate_pair(pair, caches)
 
-        results["pytorch"].append(ok_pt)
-        results["deepface"].append(ok_df)
-        results["opencv_gray"].append(ok_gray)
+        results["PyTorch FaceNet"].append(ok_pt)
+        results["DeepFace FaceNet"].append(ok_df)
+        results["OpenCV Grayscale"].append(ok_gray)
 
         pair_records.append({
             "pair_id": i,
             "image_a": pair[0],
             "image_b": pair[1],
-            "pytorch_success": ok_pt,
-            "deepface_success": ok_df,
-            "opencv_success": ok_gray
+            "PyTorch FaceNet": ok_pt,
+            "DeepFace FaceNet": ok_df,
+            "OpenCV Grayscale": ok_gray
         })
 
     # Summary statistics
@@ -226,10 +235,10 @@ def run_attack(pairs: List[Tuple[str, str]], caches) -> None:
 
     # Output results
     print("\nMorph-Attack Summary")
-    print(f"PyTorch-FaceNet   : {stats['pytorch']['count']:3d}/{len(pairs):3d}   ({stats['pytorch']['rate']:4.1f}%)")
-    print(f"DeepFace-FaceNet  : {stats['deepface']['count']:3d}/{len(pairs):3d}   ({stats['deepface']['rate']:4.1f}%)")
-    print(f"OpenCV grayscale  : {stats['opencv_gray']['count']:3d}/{len(pairs):3d}   ({stats['opencv_gray']['rate']:4.1f}%)")
-    elapsed = time.time() - start_time if 'start_time' in globals() else 0
+    print(f"PyTorch FaceNet   : {stats['PyTorch FaceNet']['count']:3d}/{len(pairs):3d}   ({stats['PyTorch FaceNet']['rate']:4.1f}%)")
+    print(f"DeepFace FaceNet  : {stats['DeepFace FaceNet']['count']:3d}/{len(pairs):3d}   ({stats['DeepFace FaceNet']['rate']:4.1f}%)")
+    print(f"OpenCV Grayscale  : {stats['OpenCV Grayscale']['count']:3d}/{len(pairs):3d}   ({stats['OpenCV Grayscale']['rate']:4.1f}%)")
+    elapsed = time.time() - start_time
     print(f"Elapsed: {elapsed:.1f} s")
 
 
@@ -237,7 +246,6 @@ def run_attack(pairs: List[Tuple[str, str]], caches) -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Pair-level CSV
-    import pandas as pd
     df_pairs = pd.DataFrame(pair_records)
     pairs_csv = os.path.join(OUTPUT_DIR, "morph_attack_pairs.csv")
     df_pairs.to_csv(pairs_csv, index=False)
@@ -290,4 +298,4 @@ if __name__ == "__main__":
     logger.info(f"Filtered {len(attack_pairs)} pairs to {len(filtered_pairs)} usable pairs")
 
     # Run attack
-    run_attack(filtered_pairs, caches)
+    run_attack(filtered_pairs, caches, start_time)

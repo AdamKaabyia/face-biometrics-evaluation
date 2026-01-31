@@ -95,20 +95,20 @@ def main():
 
     # 9) Score all pairs
     logger.info(f"Scoring {total_pairs} pairs…")
-    scores = {'DeepFaceFN': [], 'FaceNetPT': [], 'OpenCV': []}
+    scores = {'DeepFace FaceNet': [], 'PyTorch FaceNet': [], 'OpenCV Grayscale': []}
     try:
         for i, (p1, p2) in enumerate(pairs, 1):
             # DeepFace scoring
             e1, e2 = df_cache[p1], df_cache[p2]
-            scores['DeepFaceFN'].append(cosine_similarity(e1, e2))
+            scores['DeepFace FaceNet'].append(cosine_similarity(e1, e2))
 
             # PyTorch FaceNet scoring
             f1, f2 = pt_cache[p1], pt_cache[p2]
-            scores['FaceNetPT'].append(cosine_similarity(f1, f2))
+            scores['PyTorch FaceNet'].append(cosine_similarity(f1, f2))
 
             # OpenCV grayscale scoring
             g1, g2 = gray_cache[p1], gray_cache[p2]
-            scores['OpenCV'].append(score_opencv_gray(g1, g2))
+            scores['OpenCV Grayscale'].append(score_opencv_gray(g1, g2))
 
             if i % LOG_EVERY == 0 or i == total_pairs:
                 elapsed = time.time() - start
@@ -130,11 +130,11 @@ def main():
             for tgt in FMR_TARGETS:
                 idx = np.argmin(np.abs(fpr - tgt))
                 records.append({
-                    'Tool': t,
-                    'FMR_target': tgt,
-                    'Threshold': thr[idx],
-                    'FMR': float(fpr[idx]),
-                    'FNMR': float(1 - tpr[idx])
+                    'Method': t,
+                    'Target FMR': f'{tgt*100:.1f}%',
+                    'Actual FMR': f'{fpr[idx]*100:.2f}%',
+                    'FNMR': f'{(1-tpr[idx])*100:.2f}%',
+                    'Threshold': f'{thr[idx]:.3f}'
                 })
 
         plt.xlabel('False Match Rate (FMR) [%]')

@@ -18,6 +18,7 @@ FMR_TARGETS = [0.001, 0.01, 0.05]
 IMAGE_EXTS = ('.bmp', '.jpg', '.jpeg', '.png')  # Image extensions to process
 LOG_EVERY = 100  # Log progress every N items
 NUM_THREADS = 4  # Parallel threads for embedding
+GRAY_IMAGE_SIZE = (512, 512)  # Standard size for grayscale image processing
 
 
 def load_dataset(folder: str) -> Tuple[List[str], List[str]]:
@@ -126,12 +127,14 @@ def cosine_similarity(u: np.ndarray, v: np.ndarray) -> float:
     """
     return float(u.dot(v) / (np.linalg.norm(u) * np.linalg.norm(v)))
 
-def cache_grayscale_images(paths: List[str], log_every: int = LOG_EVERY) -> Dict[str, np.ndarray]:
+def cache_grayscale_images(paths: List[str], log_every: int = LOG_EVERY,
+                           image_size: tuple = GRAY_IMAGE_SIZE) -> Dict[str, np.ndarray]:
     """Cache grayscale versions of images.
 
     Args:
         paths: List of image paths
         log_every: Log progress every N images
+        image_size: Target size (width, height) for resizing images
 
     Returns:
         Dictionary mapping paths to flattened grayscale arrays
@@ -141,7 +144,8 @@ def cache_grayscale_images(paths: List[str], log_every: int = LOG_EVERY) -> Dict
 
     for i, p in enumerate(paths, 1):
         img = cv2.imread(p)
-        gray_cache[p] = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).flatten().astype(np.float32)
+        img_resized = cv2.resize(img, image_size)
+        gray_cache[p] = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY).flatten().astype(np.float32)
 
         if i % log_every == 0 or i == len(paths):
             logger.info(f"{i}/{len(paths)} grays cached")

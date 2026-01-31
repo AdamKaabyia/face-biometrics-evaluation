@@ -123,11 +123,11 @@ class FaceBiometricsCLI:
 {Colors.OKBLUE}COMMANDS:{Colors.ENDC}
     {Colors.OKGREEN}setup{Colors.ENDC}          Create virtual environment and install dependencies
     {Colors.OKGREEN}install{Colors.ENDC}        Install/update dependencies
-         {Colors.OKGREEN}check-data{Colors.ENDC}     Check if face dataset is available
-              {Colors.OKGREEN}roc{Colors.ENDC}            Run face recognition evaluation
+    {Colors.OKGREEN}check-data{Colors.ENDC}     Check if face dataset is available
+    {Colors.OKGREEN}roc{Colors.ENDC}            Run face recognition evaluation
     {Colors.OKGREEN}html{Colors.ENDC}           Generate interactive HTML ROC curves
     {Colors.OKGREEN}morph{Colors.ENDC}          Run morph attack evaluation
-     {Colors.OKGREEN}all{Colors.ENDC}            Run both roc and morph evaluations
+    {Colors.OKGREEN}all{Colors.ENDC}            Run complete evaluation (roc + html + morph)
     {Colors.OKGREEN}clean{Colors.ENDC}          Clean up temporary files
     {Colors.OKGREEN}reset{Colors.ENDC}          Clean everything (including venv and extracted data)
     {Colors.OKGREEN}results{Colors.ENDC}        Display recent results
@@ -285,7 +285,7 @@ class FaceBiometricsCLI:
             return False
 
     def run_all(self) -> bool:
-        """Run both evaluations"""
+        """Run all evaluations (roc + html + morph)"""
         self._print_header("Complete Evaluation Suite")
 
         self._print_info("Running complete face biometrics evaluation...")
@@ -293,6 +293,9 @@ class FaceBiometricsCLI:
 
         success = True
         if not self.run_main():
+            success = False
+
+        if success and not self.run_html():
             success = False
 
         if success and not self.run_morph():
